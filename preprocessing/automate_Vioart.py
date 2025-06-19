@@ -137,6 +137,11 @@ def preprocess_data(file_path):
     Returns:
         pd.DataFrame: Dataset yang telah diproses, siap untuk pelatihan.
     """
+
+     # Dapatkan path absolut relatif ke root repository
+    base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    file_path = os.path.join(base_path, file_path)
+    
     with mlflow.start_run(run_name="Preprocessing_Run"):
         # Langkah 1: Muat dataset
         df = load_and_check_dataset(file_path)
@@ -157,7 +162,7 @@ def preprocess_data(file_path):
         df = create_content_soup(df)
         
         # Simpan dataset terproses
-        output_file = os.path.join("Learning_Resources_Preprocessing.csv")
+        output_file = os.path.join(os.path.dirname(__file__), "Learning_Resources_Preprocessing.csv")
         df.to_csv(output_file, index=False)
         mlflow.log_artifact(output_file)
         print(f"Dataset terproses disimpan di: {output_file}")
@@ -168,7 +173,8 @@ def preprocess_data(file_path):
     return df
 
 if __name__ == "__main__":
-    file_path = "../Learning_Resources.csv"
+    base_dir = os.path.dirname(__file__)
+    file_path = os.path.join(base_dir, "Learning_Resources.csv")
     processed_df = preprocess_data(file_path)
     print("\nDataFrame yang telah diproses:")
     print(processed_df.head())
