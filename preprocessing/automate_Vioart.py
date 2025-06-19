@@ -162,7 +162,9 @@ def preprocess_data(file_path):
         df = create_content_soup(df)
         
         # Simpan dataset terproses
-        output_file = os.path.join(os.path.dirname(__file__), "Learning_Resources_Preprocessing.csv")
+        output_dir = os.path.join(os.getcwd(), "preprocessing")
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, "Learning_Resources_Preprocessing.csv")
         df.to_csv(output_file, index=False)
         mlflow.log_artifact(output_file)
         print(f"Dataset terproses disimpan di: {output_file}")
@@ -173,7 +175,7 @@ def preprocess_data(file_path):
     return df
 
 if __name__ == "__main__":
-    base_dir = os.path.dirname(__file__)
+    base_dir = os.getcwd()
     file_path = os.path.join(base_dir, "Learning_Resources.csv")
     processed_df = preprocess_data(file_path)
     print("\nDataFrame yang telah diproses:")
