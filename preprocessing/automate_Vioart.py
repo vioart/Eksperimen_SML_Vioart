@@ -3,12 +3,14 @@ automate_Vioart.py
 
 File ini berisi fungsi-fungsi untuk preprocessing otomatis dataset Medical Learning Resources
 dari Kaggle (https://www.kaggle.com/datasets/gopikrishnan2005/medical-learning-resources).
-Preprocessing menghasilkan data yang siap untuk pelatihan model machine learning, seperti
-vektorisasi teks untuk rekomendasi sumber daya pembelajaran medis.
+Preprocessing menghasilkan data yang siap untuk pelatihan model machine learning, dilogging
+dengan MLflow, dan disimpan sebagai artefak.
 """
 
 import pandas as pd
 import re
+import mlflow
+import os
 
 def load_and_check_dataset(file_path):
     """
@@ -45,13 +47,9 @@ def drop_constant_features(df):
             constant_cols.append(col)
             print(f"Menghapus kolom konstan: {col} ({top_pct:.2%})")
     
-    # Menghapus kolom yang diidentifikasi (misalnya, 'archived')
     df = df.drop(columns=constant_cols, errors='ignore')
-    
-    # Menghapus kolom metadata tambahan (seperti di eksperimen)
     metadata_cols = ['record_modified', 'resource_revised']
     df = df.drop(columns=[col for col in metadata_cols if col in df.columns], errors='ignore')
-    
     print("Kolom yang dihapus:", constant_cols + metadata_cols)
     return df
 
@@ -80,12 +78,12 @@ def preprocess_individual_text(text_input):
         str: Teks yang telah dibersihkan.
     """
     text = str(text_input)
-    text = re.sub(r'\W', ' ', text)  # Hapus karakter non-alfanumerik
-    text = re.sub(r'\s+[a-zA-Z]\s+', ' ', text)  # Hapus karakter tunggal diapit spasi
-    text = re.sub(r'^[a-zA-Z]\s+', ' ', text)  # Hapus karakter tunggal di awal
-    text = re.sub(r'\s+', ' ', text, flags=re.I)  # Ganti spasi ganda dengan tunggal
-    text = re.sub(r'^b\s+', '', text)  # Hapus prefix 'b'
-    text = text.lower().strip()  # Huruf kecil dan hapus spasi awal/akhir
+    text = re.sub(r'\W', ' ', text)
+    text = re.sub(r'\s+[a-zA-Z]\s+', ' ', text)
+    text = re.sub(r'^[a-zA-Z]\s+', ' ', text)
+    text = re.sub(r'\s+', ' ', text, flags=re.I)
+    text = re.sub(r'^b\s+', '', text)
+    text = text.lower().strip()
     return text
 
 def preprocess_text_columns(df, text_columns):
@@ -134,34 +132,43 @@ def preprocess_data(file_path):
     Fungsi utama untuk preprocessing otomatis dataset.
     
     Args:
-        file_path (str): Path ke file CSV.
+        file_path (str): Path ke file CSV dataset mentah
     
     Returns:
         pd.DataFrame: Dataset yang telah diproses, siap untuk pelatihan.
     """
-    # Langkah 1: Muat dataset
-    df = load_and_check_dataset(file_path)
-    
-    # Langkah 2: Hapus fitur konstan
-    df = drop_constant_features(df)
-    
-    # Langkah 3: Isi nilai kosong
-    df = fill_missing_values(df)
-    
-    # Langkah 4: Preprocessing teks
-    text_columns = ['resource_name', 'description', 'intended_audiences',
-                    'subject_areas', 'type', 'authoring_organization']
-    df = preprocess_text_columns(df, text_columns)
-    
-    # Langkah 5: Buat content_soup
-    df = create_content_soup(df)
-    
-    print("\nPreprocessing selesai. Dataset siap untuk pelatihan.")
+    with mlflow.start_run(run_name="Preprocessing_Run"):
+        # Langkah 1: Muat dataset
+        df = load_and_check_dataset(file_path)
+        mlflow.log_param("input_rows", df.shape[0])
+        
+        # Langkah 2: Hapus fitur konstan
+        df = drop_constant_features(df)
+        
+        # Langkah 3: Isi nilai kosong
+        df = fill_missing_values(df)
+        
+        # Langkah 4: Preprocessing teks
+        text_columns = ['resource_name', 'description', 'intended_audiences',
+                        'subject_areas', 'type', 'authoring_organization']
+        df = preprocess_text_columns(df, text_columns)
+        
+        # Langkah 5: Buat content_soup
+        df = create_content_soup(df)
+        
+        # Simpan dataset terproses
+        output_file = os.path.join("Learning_Resources_Preprocessing.csv")
+        df.to_csv(output_file, index=False)
+        mlflow.log_artifact(output_file)
+        print(f"Dataset terproses disimpan di: {output_file}")
+        
+        mlflow.log_metric("output_rows", df.shape[0])
+        print("\nPreprocessing selesai. Dataset siap untuk pelatihan.")
+
     return df
 
 if __name__ == "__main__":
-    # Contoh penggunaan
-    file_path = "Learning_Resources_Database_Cleaned.csv"
+    file_path = "../Learning_Resources.csv"
     processed_df = preprocess_data(file_path)
     print("\nDataFrame yang telah diproses:")
     print(processed_df.head())
