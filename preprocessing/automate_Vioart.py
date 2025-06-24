@@ -3,13 +3,12 @@ automate_Vioart.py
 
 File ini berisi fungsi-fungsi untuk preprocessing otomatis dataset Medical Learning Resources
 dari Kaggle (https://www.kaggle.com/datasets/gopikrishnan2005/medical-learning-resources).
-Preprocessing menghasilkan data yang siap untuk pelatihan model machine learning, dilogging
-dengan MLflow, dan disimpan sebagai artefak.
+Preprocessing menghasilkan data yang siap untuk pelatihan model machine learning dan disimpan
+sebagai file CSV.
 """
 
 import pandas as pd
 import re
-import mlflow
 import os
 
 def load_and_check_dataset(file_path):
@@ -32,13 +31,13 @@ def load_and_check_dataset(file_path):
 
 def drop_constant_features(df):
     """
-    Menghapus kolom yang konstan atau hampir konstan (>95% nilai sama).
+    Menghapus kolom yang konstan atau hampir konstan (>95% nilai sama) dan kolom metadata.
     
     Args:
         df (pd.DataFrame): Dataset input.
     
     Returns:
-        pd.DataFrame: Dataset tanpa kolom konstan.
+        pd.DataFrame: Dataset tanpa kolom konstan dan metadata.
     """
     constant_cols = []
     for col in df:
@@ -132,51 +131,44 @@ def preprocess_data(file_path):
     Fungsi utama untuk preprocessing otomatis dataset.
     
     Args:
-        file_path (str): Path ke file CSV dataset mentah
+        file_path (str): Path ke file CSV dataset mentah.
     
     Returns:
         pd.DataFrame: Dataset yang telah diproses, siap untuk pelatihan.
     """
-
-     # Dapatkan path absolut relatif ke root repository
+    # Dapatkan path absolut relatif ke root repository
     base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     file_path = os.path.join(base_path, file_path)
     
-    with mlflow.start_run(run_name="Preprocessing_Run"):
-        # Langkah 1: Muat dataset
-        df = load_and_check_dataset(file_path)
-        mlflow.log_param("input_rows", df.shape[0])
-        
-        # Langkah 2: Hapus fitur konstan
-        df = drop_constant_features(df)
-        
-        # Langkah 3: Isi nilai kosong
-        df = fill_missing_values(df)
-        
-        # Langkah 4: Preprocessing teks
-        text_columns = ['resource_name', 'description', 'intended_audiences',
-                        'subject_areas', 'type', 'authoring_organization']
-        df = preprocess_text_columns(df, text_columns)
-        
-        # Langkah 5: Buat content_soup
-        df = create_content_soup(df)
-        
-        # Simpan dataset terproses
-        output_dir = os.path.join(os.getcwd(), "preprocessing")
-        os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, "Learning_Resources_Preprocessing.csv")
-        df.to_csv(output_file, index=False)
-        mlflow.log_artifact(output_file)
-        print(f"Dataset terproses disimpan di: {output_file}")
-        
-        mlflow.log_metric("output_rows", df.shape[0])
-        print("\nPreprocessing selesai. Dataset siap untuk pelatihan.")
-
+    # Langkah 1: Muat dataset
+    df = load_and_check_dataset(file_path)
+    
+    # Langkah 2: Hapus fitur konstan
+    df = drop_constant_features(df)
+    
+    # Langkah 3: Isi nilai kosong
+    df = fill_missing_values(df)
+    
+    # Langkah 4: Preprocessing teks
+    text_columns = ['resource_name', 'description', 'intended_audiences',
+                    'subject_areas', 'type', 'authoring_organization']
+    df = preprocess_text_columns(df, text_columns)
+    
+    # Langkah 5: Buat content_soup
+    df = create_content_soup(df)
+    
+    # Simpan dataset terproses
+    output_dir = os.path.join(base_path, "preprocessing")
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, "Learning_Resources_Preprocessing.csv")
+    df.to_csv(output_file, index=False)
+    print(f"Dataset terproses disimpan di: {output_file}")
+    
+    print("\nPreprocessing selesai. Dataset siap untuk pelatihan.")
     return df
 
 if __name__ == "__main__":
-    base_dir = os.getcwd()
-    file_path = os.path.join(base_dir, "Learning_Resources.csv")
+    file_path = "Learning_Resources.csv"
     processed_df = preprocess_data(file_path)
     print("\nDataFrame yang telah diproses:")
     print(processed_df.head())
